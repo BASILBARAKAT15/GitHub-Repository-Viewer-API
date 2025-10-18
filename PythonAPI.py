@@ -1,13 +1,11 @@
 import requests
 import csv
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+
 
 def get_repositories(username):
-    """
-    Fetches all repositories of a given GitHub username.
-
-    :param username: GitHub username
-    :return: List of repository dictionaries with details
-    """
+    """Fetches repositories from GitHub API."""
     repositories = []
     page = 1
 
@@ -17,54 +15,36 @@ def get_repositories(username):
             response = requests.get(url, timeout=10)
             response.raise_for_status()
         except requests.RequestException as e:
-            print(f"Error: Unable to fetch repositories. Details: {e}")
+            messagebox.showerror("Error", f"Unable to fetch repositories:\n{e}")
             return []
 
         data = response.json()
         if not data:
-            break  # No more repositories available
+            break
         repositories.extend(data)
         page += 1
 
     return repositories
 
 
-def display_repositories(repositories):
-    """
-    Displays a list of repositories with details.
-
-    :param repositories: List of repository objects
-    """
+def save_repositories_to_csv(repositories, username):
+    """Saves repository data to a CSV file."""
     if not repositories:
-        print("No repositories found.")
+        messagebox.showwarning("Warning", "No repositories to save.")
         return
 
-    print(f"\nFound {len(repositories)} repositories:\n")
-    for repo in repositories:
-        print(f"Name: {repo.get('name')}")
-        print(f"Description: {repo.get('description')}")
-        print(f"Stars: {repo.get('stargazers_count')}")
-        print(f"Forks: {repo.get('forks_count')}")
-        print(f"Language: {repo.get('language')}")
-        print(f"URL: {repo.get('html_url')}")
-        print("-" * 60)
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        initialfile=f"{username}_repos.csv",
+        filetypes=[("CSV Files", "*.csv")]
+    )
 
+    if not file_path:
+        return  # User canceled
 
-def save_repositories_to_csv(repositories, filename="repos.csv"):
-    """
-    Saves repository details to a CSV file.
-
-    :param repositories: List of repository objects
-    :param filename: CSV filename (default: repos.csv)
-    """
-    if not repositories:
-        print("No repositories to save.")
-        return
-
-    with open(filename, mode="w", newline="", encoding="utf-8") as file:
+    with open(file_path, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["Name", "Description", "Stars", "Forks", "Language", "URL"])
-
         for repo in repositories:
             writer.writerow([
                 repo.get("name"),
@@ -75,22 +55,61 @@ def save_repositories_to_csv(repositories, filename="repos.csv"):
                 repo.get("html_url")
             ])
 
-    print(f"\n✅ Repositories saved to '{filename}' successfully.")
+    messagebox.showinfo("Success", f"Repositories saved to:\n{file_path}")
 
 
-def main():
-    """Main function to run the GitHub Repository Viewer."""
-    print("GitHub Repository Viewer")
-    username = input("Enter GitHub username: ").strip()
-    repositories = get_repositories(username)
+def fetch_and_display():
+    """Handles the fetch button click."""
+    username = entry_username.get().strip()
+    if not username:
+        messagebox.showwarning("Input Error", "Please enter a GitHub username.")
+        return
 
-    display_repositories(repositories)
+    tree.delete(*tree.get_children())  # Clear previous data
+    repos = get_repositories(username)
+    if not repos:
+        return
 
-    if repositories:
-        save_choice = input("\nDo you want to save these repositories to a CSV file? (y/n): ").lower()
-        if save_choice == "y":
-            save_repositories_to_csv(repositories)
+    for repo in repos:
+        tree.insert("", "end", values=(
+            repo.get("name"),
+            repo.get("stargazers_count"),
+            repo.get("forks_count"),
+            repo.get("language") or "N/A"
+        ))
+
+    save_button.config(state="normal")
+    global current_repos, current_username
+    current_repos = repos
+    current_username = username
 
 
-if __name__ == "__main__":
-    main()
+# --- GUI Setup ---
+root = tk.Tk()
+root.title("GitHub Repository Viewer")
+root.geometry("800x500")
+root.resizable(False, False)
+
+frame_top = tk.Frame(root, pady=10)
+frame_top.pack()
+
+tk.Label(frame_top, text="Enter GitHub username:", font=("Arial", 12)).pack(side="left")
+entry_username = tk.Entry(frame_top, font=("Arial", 12), width=30)
+entry_username.pack(side="left", padx=10)
+fetch_button = tk.Button(frame_top, text="Fetch Repos", command=fetch_and_display)
+fetch_button.pack(side="left")
+
+# Table (Treeview)
+columns = ("Name", "Stars", "Forks", "Language")
+tree = ttk.Treeview(root, columns=columns, show="headings", height=15)
+for col in columns:
+    tree.heading(col, text=col)
+    tree.column(col, width=180 if col == "Name" else 100, anchor="center")
+tree.pack(pady=10, fill="both", expand=True)
+
+# Save button
+save_button = tk.Button(root, text="Save to CSV", state="disabled",
+                        command=lambda: save_repositories_to_csv(current_repos, current_username))
+save_button.pack(pady=10)
+
+root.mainloop()
