@@ -77,8 +77,8 @@ Built using **Tkinter** and **Requests**, it lets you fetch repositories, displa
 ## 🧑‍💻 Author
 
 **Your Name**
-📧 [your.email@example.com](mailto:your.email@example.com)
-💼 [LinkedIn](https://linkedin.com/in/yourprofile) • 🌐 [GitHub](https://github.com/yourusername)
+📧 [basilbarakat79@gmail.com](mailto:your.email@example.com)
+💼 [LinkedIn](linkedin.com/in/basil-barakat) • 🌐 [GitHub]((https://github.com/BASILBARAKAT15))
 
 ---
 
